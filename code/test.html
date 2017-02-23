@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js canvas - interactive - voxel painter</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #f0f0f0;
+				margin: 0px;
+				overflow: hidden;
+			}
+		</style>
+	</head>
+	<body>
+
+		<script src="../third_party/three.js/three.js"></script>
+
+		<script src="../third_party/three.js/js/renderers/Projector.js"></script>
+		<script src="../third_party/three.js/js/renderers/CanvasRenderer.js"></script>
+		<script src="../third_party/three.js/js/controls/FirstPersonControls.js"></script>
+
+		<script>
+
+			var container;
+			var camera, scene, renderer, controls;
+			var plane;
+
+			var mouse, raycaster, isShiftDown = false;
+
+			var texture = new THREE.TextureLoader().load("./res/textures/cubes/wood_frame.png");
+			texture.magFilter = THREE.NearestFilter;
+			texture.minFilter = THREE.LinearMipMapLinearFilter;
+			texture.premultiplyAlpha = true;
+
+			var cubeGeometry = new THREE.BoxGeometry( 50, 50, 50 );
+			var cubeMaterial = new THREE.MeshLambertMaterial( { map:texture, color: 0xffffff, overdraw: 0.5 } );
+			var cubeMaterialCursor = new THREE.MeshLambertMaterial( { map:texture, color: 0xffffff, overdraw: 0.5, opacity:0.5 } );
+			cubeMaterial.transparent = true;
+			cubeMaterialCursor.transparent = true;
+
+			var objects = [];
+			var pointlight;
+
+			var cursorObject;
+
+			var clock = new THREE.Clock();
+
+			init();
+			frame();
+			/// go!
+			controls.requestFullScreen();
+
+			function init() {
+
+				container = document.createElement( 'div' );
+
+				document.body.appendChild( container );
+
+				var gunsight = document.createElement( 'div' );
+				gunsight.style.position = 'absolute';
+				gunsight.style.top = '50%';
+				gunsight.style.width = '100%';
+				gunsight.style.textAlign = 'center';
+				gunsight.innerHTML = '<div href="http://threejs.org" target="_blank"><font size=300 color=\"white\">+</font></div>';
+				container.appendChild( gunsight );
+
+				camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 10000 );
+				camera.position.set( 100, 100, 500 );
+				camera.lookAt( new THREE.Vector3(0, 0, 0) );
+
+				controls = new THREE.FirstPersonControls( camera, container );
+				controls.movementSpeed = 200;
+				controls.lookSpeed = 10.15;
+				controls.activeLook = false;
+				controls.mouseDownDispatcher = onDocumentMouseDown;
+				controls.mouseMoveDispatcher = onDocumentMouseMove;
+
+
+				scene = new THREE.Scene();
+
+				// Grid
+
+				var size = 500, step = 50;
+
+				var geometry = new THREE.Geometry();
+
+				for ( var i = - size; i <= size; i += step ) {
+
+					geometry.vertices.push( new THREE.Vector3( - size, 0, i ) );
+					geometry.vertices.push( new THREE.Vector3(   size, 0, i ) );
+
+					geometry.vertices.push( new THREE.Vector3( i, 0, - size ) );
+					geometry.vertices.push( new THREE.Vector3( i, 0,   size ) );
+
+				}
+
+				var material = new THREE.MeshLambertMaterial( { color: 0x565656, opacity: 1, 
+								map:new THREE.TextureLoader().load("./res/textures/cubes/grasslight-big.jpg") } );
+
+				raycaster = new THREE.Raycaster();
+				mouse = new THREE.Vector2();
+
+				var geometry = new THREE.PlaneGeometry( 5000, 5000, 50, 50 );
+				geometry.rotateX( - Math.PI / 2 );
+
+				plane = new THREE.Mesh( geometry, material );
+				scene.add( plane );
+				objects.push( plane );
+
+				// cursor object
+				cursorObject = new THREE.Mesh( cubeGeometry, cubeMaterialCursor );
+				scene.add(cursorObject);
+
+				// Lights
+				var ambientLight = new THREE.AmbientLight( 0x303030 );
+				scene.add( ambientLight );
+
+				var directionalLight = new THREE.DirectionalLight( 0x646464 );
+				directionalLight.position.x = Math.random() - 0.5;
+				directionalLight.position.y = Math.random() - 0.5;
+				directionalLight.position.z = Math.random() - 0.5;
+				directionalLight.position.normalize();
+				scene.add( directionalLight );
+
+				var directionalLight = new THREE.DirectionalLight( 0x808080 );
+				directionalLight.position.x = Math.random() - 0.5;
+				directionalLight.position.y = Math.random() - 0.5;
+				directionalLight.position.z = Math.random() - 0.5;
+				directionalLight.position.normalize();
+				scene.add( directionalLight );
+
+				pointlight = new THREE.PointLight( 0xffffff, 2, 1500 );
+				scene.add( pointlight );
+
+				renderer = new THREE.WebGLRenderer();
+				renderer.setClearColor( 0xf0f0f0 );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild(renderer.domElement);
+
+				document.addEventListener( 'mousedown', onDocumentMouseDown, false );
+				document.addEventListener( 'keydown', onDocumentKeyDown, false );
+				document.addEventListener( 'keyup', onDocumentKeyUp, false );
+				window.addEventListener( 'resize', onWindowResize, false );
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				controls.handleResize();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				render();
+
+			}
+
+			function onDocumentMouseDown( event ) {
+
+				event.preventDefault();
+
+				mouse.x = 0;
+				mouse.y = 0;
+
+				raycaster.setFromCamera( mouse, camera );
+
+				var intersects = raycaster.intersectObjects( objects );
+
+				if ( intersects.length > 0 ) {
+
+					var intersect = intersects[ 0 ];
+
+					if ( isShiftDown ) {
+
+						if ( intersect.object != plane ) {
+
+							scene.remove( intersect.object );
+
+							objects.splice( objects.indexOf( intersect.object ), 1 );
+
+						}
+
+					} else {
+
+						var voxel = new THREE.Mesh( cubeGeometry, cubeMaterial );
+						voxel.position.copy( intersect.point ).add( intersect.face.normal );
+						voxel.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
+						scene.add( voxel );
+
+						objects.push( voxel );
+
+					}
+
+				}
+
+			}
+
+			function onDocumentMouseMove( event ) {
+
+				mouse.x = 0;
+				mouse.y = 0;
+				raycaster.setFromCamera( mouse, camera );
+				var intersects = raycaster.intersectObjects( objects );
+
+				if ( intersects.length > 0 ) {
+
+					var intersect = intersects[ 0 ];
+
+					if ( isShiftDown ) {
+
+						if ( intersect.object != plane ) {
+
+							scene.remove( intersect.object );
+
+							objects.splice( objects.indexOf( intersect.object ), 1 );
+
+						}
+
+					} else {
+						cursorObject.position.copy( intersect.point ).add( intersect.face.normal );
+						cursorObject.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
+					}
+				}
+			}
+
+			function onDocumentKeyDown( event ) {
+
+				switch( event.keyCode ) {
+
+					case 16: isShiftDown = true; break;
+
+				}
+
+			}
+
+			function onDocumentKeyUp( event ) {
+
+				switch( event.keyCode ) {
+
+					case 16: isShiftDown = false; break;
+
+				}
+			}
+
+			function save() {
+
+				window.open( renderer.domElement.toDataURL('image/png'), 'mywindow' );
+				return false;
+
+			}
+
+			function frame() {
+				requestAnimationFrame( frame );
+				controls.update( clock.getDelta() );
+				pointlight.position.x = camera.position.x;
+				pointlight.position.y = camera.position.y;
+				pointlight.position.z = camera.position.z;
+				render();
+			}
+
+			function render() {
+				renderer.render( scene, camera );
+			}
+
+		</script>
+
+	</body>
+</html>

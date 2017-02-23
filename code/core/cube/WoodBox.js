@@ -1,0 +1,2 @@
+ENOMOURS.Cube.WoodBox = function () {
+}
