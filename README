@@ -1,1 +1,28 @@
-Let's make the world-os.
+VR Operation System.
+
+------------------------------------------------------
+| Building Tools |   User Space  |   Virtual Society |
+------------------------------------------------------
+| Roles | Entities | Worm Hole | Avatar |
+----------------------------------------------------------
+|    Connectivities  |     Occupancy    |    Regulations  |
+|                    |                  |                 |
+----------------------------------------------------------------
+|     Enomouse OS World Process     |    Real World  Process   |
+|                                   |                          |
+----------------------------------------------------------------
+| World Components Sets | Extend Interface |
+-------------------------------------------------------------
+| WebGL javascript frameworks||WebGL Engine| Porting Layers |
+------------------------------------------------------------------
+| Browser Platform || HTML5 Stantart Runtime| WebGL/Canvas Runtime|
+------------------------------------------------------------------
+| GUI Service | Audio Service | Sensor Service |
+|             |               |                |
+------------------------------------------------
+| OpenVR | OpenGL ES 2.0 | Core Libs | HAL |
+--------------------------------------------------
+|                                                |
+|                 LINUX KERNEL                   |
+|                                                |
+--------------------------------------------------
